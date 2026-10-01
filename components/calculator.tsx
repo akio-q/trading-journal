@@ -7,7 +7,13 @@ import {
   AssetSymbol,
   TradeDirection,
 } from "@/types/trading";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  Target,
+  ShieldAlert,
+  Navigation,
+} from "lucide-react";
 
 const RISK_PRESETS = [0.25, 0.5, 1.0, 1.5, 2.0] as const;
 
@@ -19,7 +25,7 @@ export function PositionCalculator() {
   const [accountBalance, setAccountBalance] = useState<number>(10000);
   const [riskPercentage, setRiskPercentage] = useState<number>(1.0);
 
-  // Benchmark prices initialized from the selected asset spec
+  // Execution Price state initialized from selected asset spec
   const [entryPrice, setEntryPrice] = useState<number>(
     ASSET_SPECS.NAS100.defaultEntry,
   );
@@ -42,6 +48,24 @@ export function PositionCalculator() {
   const cashAtRiskPreview = (accountBalance * (riskPercentage / 100)).toFixed(
     2,
   );
+
+  // Derived metrics for price deltas
+  const isSlInvalid =
+    direction === "long"
+      ? stopLossPrice >= entryPrice
+      : stopLossPrice <= entryPrice;
+
+  const isTpInvalid =
+    direction === "long"
+      ? takeProfitPrice <= entryPrice
+      : takeProfitPrice >= entryPrice;
+
+  const slDelta = Math.abs(entryPrice - stopLossPrice);
+  const tpDelta = Math.abs(takeProfitPrice - entryPrice);
+  const slTicks =
+    currentSpec.tickSize > 0 ? Math.round(slDelta / currentSpec.tickSize) : 0;
+  const tpTicks =
+    currentSpec.tickSize > 0 ? Math.round(tpDelta / currentSpec.tickSize) : 0;
 
   return (
     <div className="w-full space-y-6">
@@ -205,6 +229,127 @@ export function PositionCalculator() {
                   %
                 </span>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Execution Prices (Entry, SL, TP) */}
+      <div className="p-4 rounded-md border border-[#1e222d] bg-[#121318]">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Entry Price */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="entry-price"
+                className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider text-zinc-400"
+              >
+                <Navigation className="w-3 h-3 text-sky-400" />
+                Entry Price
+              </label>
+              <span className="text-[10px] font-mono text-zinc-500">
+                Tick: {currentSpec.tickSize}
+              </span>
+            </div>
+            <input
+              id="entry-price"
+              type="number"
+              step={currentSpec.tickSize}
+              value={entryPrice || ""}
+              onChange={(e) => setEntryPrice(parseFloat(e.target.value) || 0)}
+              className="w-full px-3 py-2 bg-[#09090b] border border-[#1e222d] text-zinc-100 rounded-md font-mono text-sm tabular-nums focus:border-sky-500/60 focus:outline-none transition-colors"
+            />
+            <div className="text-[11px] font-mono text-zinc-500 flex justify-between">
+              <span>Benchmark level</span>
+              <span className="text-zinc-400 font-semibold">
+                {selectedAsset}
+              </span>
+            </div>
+          </div>
+
+          {/* Stop Loss Price */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="stop-loss"
+                className={`flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider ${
+                  isSlInvalid ? "text-rose-400 font-semibold" : "text-zinc-400"
+                }`}
+              >
+                <ShieldAlert className="w-3 h-3 text-rose-400" />
+                Stop Loss
+              </label>
+              <span
+                className={`text-[10px] font-mono ${
+                  isSlInvalid ? "text-rose-400 font-bold" : "text-zinc-500"
+                }`}
+              >
+                {isSlInvalid ? "INVALID SL" : `${slTicks} ticks`}
+              </span>
+            </div>
+            <input
+              id="stop-loss"
+              type="number"
+              step={currentSpec.tickSize}
+              value={stopLossPrice || ""}
+              onChange={(e) =>
+                setStopLossPrice(parseFloat(e.target.value) || 0)
+              }
+              className={`w-full px-3 py-2 bg-[#09090b] border rounded-md font-mono text-sm tabular-nums focus:outline-none transition-colors ${
+                isSlInvalid
+                  ? "border-rose-500/50 text-rose-300 focus:border-rose-500"
+                  : "border-[#1e222d] text-zinc-100 focus:border-rose-500/60"
+              }`}
+            />
+            <div className="text-[11px] font-mono text-zinc-500 flex justify-between">
+              <span>Risk span</span>
+              <span className={isSlInvalid ? "text-rose-400" : "text-zinc-400"}>
+                Δ {slDelta.toFixed(4)}
+              </span>
+            </div>
+          </div>
+
+          {/* Take Profit Price */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="take-profit"
+                className={`flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider ${
+                  isTpInvalid ? "text-amber-400 font-semibold" : "text-zinc-400"
+                }`}
+              >
+                <Target className="w-3 h-3 text-emerald-400" />
+                Take Profit
+              </label>
+              <span
+                className={`text-[10px] font-mono ${
+                  isTpInvalid ? "text-amber-400 font-bold" : "text-zinc-500"
+                }`}
+              >
+                {isTpInvalid ? "INVALID TP" : `${tpTicks} ticks`}
+              </span>
+            </div>
+            <input
+              id="take-profit"
+              type="number"
+              step={currentSpec.tickSize}
+              value={takeProfitPrice || ""}
+              onChange={(e) =>
+                setTakeProfitPrice(parseFloat(e.target.value) || 0)
+              }
+              className={`w-full px-3 py-2 bg-[#09090b] border rounded-md font-mono text-sm tabular-nums focus:outline-none transition-colors ${
+                isTpInvalid
+                  ? "border-amber-500/50 text-amber-300 focus:border-amber-500"
+                  : "border-[#1e222d] text-zinc-100 focus:border-emerald-500/60"
+              }`}
+            />
+            <div className="text-[11px] font-mono text-zinc-500 flex justify-between">
+              <span>Reward span</span>
+              <span
+                className={isTpInvalid ? "text-amber-400" : "text-zinc-400"}
+              >
+                Δ {tpDelta.toFixed(4)}
+              </span>
             </div>
           </div>
         </div>
