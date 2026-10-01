@@ -7,12 +7,17 @@ import {
   AssetSymbol,
   TradeDirection,
 } from "@/types/trading";
+import { calculatePositionSize } from "@/lib/calculations";
 import {
   TrendingUp,
   TrendingDown,
   Target,
   ShieldAlert,
   Navigation,
+  AlertTriangle,
+  Scale,
+  DollarSign,
+  ArrowUpRight,
 } from "lucide-react";
 
 const RISK_PRESETS = [0.25, 0.5, 1.0, 1.5, 2.0] as const;
@@ -45,11 +50,8 @@ export function PositionCalculator() {
   };
 
   const currentSpec = ASSET_SPECS[selectedAsset];
-  const cashAtRiskPreview = (accountBalance * (riskPercentage / 100)).toFixed(
-    2,
-  );
 
-  // Derived metrics for price deltas
+  // Derived price validation
   const isSlInvalid =
     direction === "long"
       ? stopLossPrice >= entryPrice
@@ -66,6 +68,20 @@ export function PositionCalculator() {
     currentSpec.tickSize > 0 ? Math.round(slDelta / currentSpec.tickSize) : 0;
   const tpTicks =
     currentSpec.tickSize > 0 ? Math.round(tpDelta / currentSpec.tickSize) : 0;
+
+  // Real-time pure position calculation
+  const result = calculatePositionSize({
+    accountBalance,
+    riskPercentage,
+    entryPrice,
+    stopLossPrice,
+    takeProfitPrice,
+    direction,
+    spec: currentSpec,
+  });
+
+  const positionUnitLabel =
+    currentSpec.category === "Indices" ? "CONTRACTS" : "LOTS";
 
   return (
     <div className="w-full space-y-6">
@@ -183,7 +199,7 @@ export function PositionCalculator() {
               <span className="text-[11px] font-mono text-zinc-400">
                 Risk Capital:{" "}
                 <strong className="text-rose-400 font-semibold tabular-nums">
-                  ${cashAtRiskPreview}
+                  ${result.cashAtRisk.toFixed(2)}
                 </strong>
               </span>
             </div>
@@ -353,6 +369,121 @@ export function PositionCalculator() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 4. Live Results HUD Card */}
+      <div className="p-5 rounded-md border border-[#1e222d] bg-[#121318]">
+        {!result.isValid ? (
+          <div className="flex items-center gap-3 p-3 rounded bg-rose-500/10 border border-rose-500/20 text-rose-400 font-mono text-xs">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+            <span>{result.errorMessage || "Invalid trade geometry."}</span>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-4 pb-4 border-b border-[#1e222d]">
+              <div>
+                <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+                  Recommended Position Size
+                </span>
+                <div className="flex items-baseline gap-3">
+                  <span className="text-4xl font-mono font-bold text-zinc-100 tracking-tight tabular-nums">
+                    {result.positionSize.toFixed(2)}
+                  </span>
+                  <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
+                    {positionUnitLabel}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-6">
+                <div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block">
+                    Direction
+                  </span>
+                  <span
+                    className={`font-mono text-sm font-bold uppercase ${
+                      direction === "long"
+                        ? "text-emerald-400"
+                        : "text-rose-400"
+                    }`}
+                  >
+                    {direction}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block">
+                    Asset
+                  </span>
+                  <span className="font-mono text-sm font-bold text-zinc-200">
+                    {selectedAsset}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Metrics Breakdown Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-3 rounded bg-[#09090b] border border-[#1e222d] space-y-1">
+                <div className="flex items-center gap-1.5 text-zinc-400">
+                  <Scale className="w-3.5 h-3.5 text-sky-400" />
+                  <span className="text-[10px] font-mono uppercase tracking-wider">
+                    Risk / Reward
+                  </span>
+                </div>
+                <div
+                  className={`text-lg font-mono font-bold tabular-nums ${
+                    result.riskRewardRatio >= 2
+                      ? "text-emerald-400"
+                      : result.riskRewardRatio >= 1
+                        ? "text-zinc-200"
+                        : "text-amber-400"
+                  }`}
+                >
+                  {result.formattedRr}
+                </div>
+              </div>
+
+              <div className="p-3 rounded bg-[#09090b] border border-[#1e222d] space-y-1">
+                <div className="flex items-center gap-1.5 text-zinc-400">
+                  <DollarSign className="w-3.5 h-3.5 text-rose-400" />
+                  <span className="text-[10px] font-mono uppercase tracking-wider">
+                    Total Risk
+                  </span>
+                </div>
+                <div className="text-lg font-mono font-bold text-rose-400 tabular-nums">
+                  -${result.cashAtRisk.toFixed(2)}
+                </div>
+              </div>
+
+              <div className="p-3 rounded bg-[#09090b] border border-[#1e222d] space-y-1">
+                <div className="flex items-center gap-1.5 text-zinc-400">
+                  <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-[10px] font-mono uppercase tracking-wider">
+                    Target Return
+                  </span>
+                </div>
+                <div className="text-lg font-mono font-bold text-emerald-400 tabular-nums">
+                  +${result.projectedProfit.toFixed(2)}
+                </div>
+              </div>
+
+              <div className="p-3 rounded bg-[#09090b] border border-[#1e222d] space-y-1">
+                <div className="flex items-center gap-1.5 text-zinc-400">
+                  <ShieldAlert className="w-3.5 h-3.5 text-zinc-400" />
+                  <span className="text-[10px] font-mono uppercase tracking-wider">
+                    Stop Distance
+                  </span>
+                </div>
+                <div className="text-lg font-mono font-bold text-zinc-200 tabular-nums">
+                  {slTicks}{" "}
+                  <span className="text-xs font-normal text-zinc-400">
+                    ticks
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
