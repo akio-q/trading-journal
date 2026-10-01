@@ -6,6 +6,7 @@ import {
   ASSET_SPECS,
   AssetSymbol,
   TradeDirection,
+  TradeLog,
 } from "@/types/trading";
 import { calculatePositionSize } from "@/lib/calculations";
 import {
@@ -18,11 +19,19 @@ import {
   Scale,
   DollarSign,
   ArrowUpRight,
+  BookOpenCheck,
+  CheckCircle2,
 } from "lucide-react";
 
 const RISK_PRESETS = [0.25, 0.5, 1.0, 1.5, 2.0] as const;
 
-export function PositionCalculator() {
+export type LogTradePayload = Omit<TradeLog, "id" | "createdAt" | "status">;
+
+interface PositionCalculatorProps {
+  onLogTrade?: (trade: LogTradePayload) => void;
+}
+
+export function PositionCalculator({ onLogTrade }: PositionCalculatorProps) {
   const [selectedAsset, setSelectedAsset] = useState<AssetSymbol>("NAS100");
   const [direction, setDirection] = useState<TradeDirection>("long");
 
@@ -40,6 +49,9 @@ export function PositionCalculator() {
   const [takeProfitPrice, setTakeProfitPrice] = useState<number>(
     ASSET_SPECS.NAS100.defaultTp,
   );
+
+  // Visual feedback state for logged trades
+  const [lastLoggedAt, setLastLoggedAt] = useState<string | null>(null);
 
   const handleSelectAsset = (asset: AssetSymbol) => {
     setSelectedAsset(asset);
@@ -82,6 +94,30 @@ export function PositionCalculator() {
 
   const positionUnitLabel =
     currentSpec.category === "Indices" ? "CONTRACTS" : "LOTS";
+
+  const handleLogTrade = () => {
+    if (!result.isValid) return;
+
+    const payload: LogTradePayload = {
+      asset: selectedAsset,
+      direction,
+      entryPrice,
+      stopLossPrice,
+      takeProfitPrice,
+      positionSize: result.positionSize,
+      riskPercentage,
+      cashAtRisk: result.cashAtRisk,
+      projectedProfit: result.projectedProfit,
+      riskRewardRatio: result.riskRewardRatio,
+    };
+
+    if (onLogTrade) {
+      onLogTrade(payload);
+    }
+
+    const timestamp = new Date().toLocaleTimeString();
+    setLastLoggedAt(timestamp);
+  };
 
   return (
     <div className="w-full space-y-6">
@@ -371,8 +407,8 @@ export function PositionCalculator() {
         </div>
       </div>
 
-      {/* 4. Live Results HUD Card */}
-      <div className="p-5 rounded-md border border-[#1e222d] bg-[#121318]">
+      {/* 4. Live Results HUD Card & Execution Bar */}
+      <div className="p-5 rounded-md border border-[#1e222d] bg-[#121318] space-y-5">
         {!result.isValid ? (
           <div className="flex items-center gap-3 p-3 rounded bg-rose-500/10 border border-rose-500/20 text-rose-400 font-mono text-xs">
             <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -484,6 +520,38 @@ export function PositionCalculator() {
             </div>
           </div>
         )}
+
+        {/* 5. Terminal Action Bar */}
+        <div className="pt-2 border-t border-[#1e222d] flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
+            {lastLoggedAt ? (
+              <span className="inline-flex items-center gap-1.5 text-emerald-400">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                LOGGED AT {lastLoggedAt}
+              </span>
+            ) : !result.isValid ? (
+              <span className="text-zinc-600 font-semibold tracking-wide">
+                EXECUTION BLOCKED
+              </span>
+            ) : (
+              <span className="text-zinc-400">READY FOR DISPATCH</span>
+            )}
+          </div>
+
+          <button
+            type="button"
+            disabled={!result.isValid}
+            onClick={handleLogTrade}
+            className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md font-mono text-xs font-bold uppercase tracking-wider transition-all duration-150 ${
+              result.isValid
+                ? "bg-zinc-100 text-zinc-950 hover:bg-white active:scale-[0.99] shadow-sm cursor-pointer"
+                : "bg-zinc-900 text-zinc-600 border border-[#1e222d] cursor-not-allowed opacity-60"
+            }`}
+          >
+            <BookOpenCheck className="w-4 h-4" />
+            Log Position To Journal
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -91,3 +91,20 @@ export const SESSIONS = [
 export type TradingSession = (typeof SESSIONS)[number];
 
 export type ActiveTab = "calculator" | "journal" | "analytics";
+
+export interface TradeLog {
+  id: string;
+  asset: AssetSymbol;
+  direction: TradeDirection;
+  entryPrice: number;
+  stopLossPrice: number;
+  takeProfitPrice: number;
+  positionSize: number;
+  riskPercentage: number;
+  cashAtRisk: number;
+  projectedProfit: number;
+  riskRewardRatio: number;
+  status: "OPEN" | "WIN" | "LOSS" | "BE";
+  notes?: string;
+  createdAt: string;
+}
