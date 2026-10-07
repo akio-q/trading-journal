@@ -105,6 +105,7 @@ export interface TradeLog {
   projectedProfit: number;
   riskRewardRatio: number;
   status: "OPEN" | "WIN" | "LOSS" | "BE";
+  session?: TradingSession;
   notes?: string;
   createdAt: string;
 }
