@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Navbar } from "@/components/navbar";
 import { PositionCalculator, LogTradePayload } from "@/components/calculator";
+import { JournalTable } from "@/components/journal-table";
 import { ActiveTab, TradingSession } from "@/types/trading";
 import { insertTrade } from "@/lib/supabase/trades";
 
@@ -12,13 +13,9 @@ function getCurrentSession(): TradingSession | undefined {
   const utcMinutes = now.getUTCMinutes();
   const totalMinutes = utcHours * 60 + utcMinutes;
 
-  // Asia Killzone: 00:00 - 06:00 UTC (0 to 360 mins)
   if (totalMinutes >= 0 && totalMinutes < 360) return "Asia Killzone";
-  // London Killzone: 07:00 - 10:00 UTC (420 to 600 mins)
   if (totalMinutes >= 420 && totalMinutes < 600) return "London Killzone";
-  // NY AM Killzone: 12:00 - 15:00 UTC (720 to 900 mins)
   if (totalMinutes >= 720 && totalMinutes < 900) return "NY AM Killzone";
-  // NY PM Killzone: 18:00 - 20:00 UTC (1080 to 1200 mins)
   if (totalMinutes >= 1080 && totalMinutes < 1200) return "NY PM Killzone";
 
   return undefined;
@@ -26,11 +23,9 @@ function getCurrentSession(): TradingSession | undefined {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("calculator");
-  const [isLogging, setIsLogging] = useState<boolean>(false);
 
   const handleLogTrade = async (payload: LogTradePayload) => {
     try {
-      setIsLogging(true);
       const activeSession = getCurrentSession();
       const savedTrade = await insertTrade(payload, activeSession);
 
@@ -41,8 +36,6 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Unexpected error logging trade:", err);
-    } finally {
-      setIsLogging(false);
     }
   };
 
@@ -54,11 +47,7 @@ export default function Home() {
         {activeTab === "calculator" && (
           <PositionCalculator onLogTrade={handleLogTrade} />
         )}
-        {activeTab === "journal" && (
-          <div className="p-6 rounded-md border border-[#1e222d] bg-[#121318] text-xs font-mono text-zinc-400">
-            Journal view placeholder
-          </div>
-        )}
+        {activeTab === "journal" && <JournalTable />}
         {activeTab === "analytics" && (
           <div className="p-6 rounded-md border border-[#1e222d] bg-[#121318] text-xs font-mono text-zinc-400">
             Analytics view placeholder
