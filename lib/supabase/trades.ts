@@ -99,3 +99,33 @@ export async function updateTradeOutcome(
 
   return true;
 }
+
+export async function updateTradeNotes(
+  id: string,
+  notes: string,
+): Promise<boolean> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("trades")
+    .update({ notes })
+    .eq("id", id);
+
+  if (error) {
+    console.error(`Failed to update notes for trade ${id}:`, error);
+    return false;
+  }
+
+  return true;
+}
+
+export async function deleteTrade(id: string): Promise<boolean> {
+  const supabase = createClient();
+  const { error } = await supabase.from("trades").delete().eq("id", id);
+
+  if (error) {
+    console.error(`Failed to delete trade ${id}:`, error);
+    return false;
+  }
+
+  return true;
+}

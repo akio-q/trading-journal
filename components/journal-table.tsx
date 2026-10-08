@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { TradeLog } from "@/types/trading";
 import { fetchTrades, updateTradeOutcome } from "@/lib/supabase/trades";
+import { TradeDrawer } from "@/components/trade-drawer";
 import { TrendingUp, TrendingDown, RefreshCw, Clock } from "lucide-react";
 
 const STATUS_OPTIONS: Array<TradeLog["status"]> = ["OPEN", "WIN", "LOSS", "BE"];
@@ -11,6 +12,10 @@ export function JournalTable() {
   const [trades, setTrades] = useState<TradeLog[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Selected trade for drawer
+  const [selectedTrade, setSelectedTrade] = useState<TradeLog | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
 
   const loadTrades = useCallback(async () => {
     setIsLoading(true);
@@ -41,9 +46,11 @@ export function JournalTable() {
   }, []);
 
   const handleStatusChange = async (
+    e: React.MouseEvent,
     tradeId: string,
     newStatus: TradeLog["status"],
   ) => {
+    e.stopPropagation(); // Don't trigger drawer when clicking status pill
     setUpdatingId(tradeId);
 
     setTrades((prev) =>
@@ -55,6 +62,23 @@ export function JournalTable() {
       await loadTrades();
     }
     setUpdatingId(null);
+  };
+
+  const handleRowClick = (trade: TradeLog) => {
+    setSelectedTrade(trade);
+    setIsDrawerOpen(true);
+  };
+
+  const handleTradeUpdated = (updatedTrade: TradeLog) => {
+    setTrades((prev) =>
+      prev.map((t) => (t.id === updatedTrade.id ? updatedTrade : t)),
+    );
+    setSelectedTrade(updatedTrade);
+  };
+
+  const handleTradeDeleted = (deletedId: string) => {
+    setTrades((prev) => prev.filter((t) => t.id !== deletedId));
+    setSelectedTrade(null);
   };
 
   const formatPrice = (val: number) => {
@@ -70,7 +94,8 @@ export function JournalTable() {
             Execution Log & Journal
           </h2>
           <p className="text-xs font-mono text-zinc-500">
-            Historical trade executions, killzones, and outcome tracking.
+            Historical trade executions, killzones, and outcome tracking. Click
+            any row for details & notes.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -82,7 +107,7 @@ export function JournalTable() {
             type="button"
             onClick={loadTrades}
             disabled={isLoading}
-            className="p-1.5 rounded border border-[#1e222d] bg-[#121318] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors disabled:opacity-50"
+            className="p-1.5 rounded border border-[#1e222d] bg-[#121318] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors disabled:opacity-50 cursor-pointer"
             title="Refresh logs"
           >
             <RefreshCw
@@ -140,7 +165,8 @@ export function JournalTable() {
                   return (
                     <tr
                       key={trade.id}
-                      className="hover:bg-zinc-900/40 transition-colors tabular-nums"
+                      onClick={() => handleRowClick(trade)}
+                      className="hover:bg-zinc-900/60 cursor-pointer transition-colors tabular-nums"
                     >
                       {/* Date & Session */}
                       <td className="py-3 px-4 whitespace-nowrap">
@@ -204,7 +230,10 @@ export function JournalTable() {
 
                       {/* Outcome Selector */}
                       <td className="py-3 px-4 text-center whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1 bg-[#09090b] p-1 rounded border border-[#1e222d]">
+                        <div
+                          className="inline-flex items-center gap-1 bg-[#09090b] p-1 rounded border border-[#1e222d]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {STATUS_OPTIONS.map((status) => {
                             const isSelected = trade.status === status;
                             let activeClass =
@@ -231,10 +260,10 @@ export function JournalTable() {
                                 key={status}
                                 type="button"
                                 disabled={updatingId === trade.id}
-                                onClick={() =>
-                                  handleStatusChange(trade.id, status)
+                                onClick={(e) =>
+                                  handleStatusChange(e, trade.id, status)
                                 }
-                                className={`px-2 py-0.5 rounded text-[10px] transition-all ${activeClass}`}
+                                className={`px-2 py-0.5 rounded text-[10px] transition-all cursor-pointer ${activeClass}`}
                               >
                                 {status}
                               </button>
@@ -250,6 +279,15 @@ export function JournalTable() {
           </table>
         </div>
       </div>
+
+      {/* Trade Details / Notes Drawer */}
+      <TradeDrawer
+        trade={selectedTrade}
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onTradeUpdated={handleTradeUpdated}
+        onTradeDeleted={handleTradeDeleted}
+      />
     </div>
   );
 }
