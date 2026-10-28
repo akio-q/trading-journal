@@ -126,7 +126,7 @@ export function PositionCalculator({ onLogTrade }: PositionCalculatorProps) {
             MODE:
           </span>
           <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-            ICT EXECUTION
+            RISK ENGINE
           </span>
         </div>
       </div>

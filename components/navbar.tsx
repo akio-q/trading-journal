@@ -9,12 +9,26 @@ interface NavbarProps {
   onTabChange: (tab: ActiveTab) => void;
 }
 
-function getCurrentKillzone(utcHour: number): string {
-  if (utcHour >= 0 && utcHour < 4) return "Asia Killzone";
-  if (utcHour >= 7 && utcHour < 10) return "London Killzone";
-  if (utcHour >= 12 && utcHour < 15) return "NY AM Killzone";
-  if (utcHour >= 18 && utcHour < 20) return "NY PM Killzone";
-  return "Interbank / Off-Hours";
+function getCurrentSession(now: Date): string {
+  const utcHours = now.getUTCHours();
+  const utcMinutes = now.getUTCMinutes();
+  const totalMinutes = utcHours * 60 + utcMinutes;
+
+  // 00:00 - 07:00 UTC -> Азійська сесія (Токіо / Сідней)
+  if (totalMinutes >= 0 && totalMinutes < 420) {
+    return "Asian Session";
+  }
+  // 07:00 - 12:00 UTC -> Лондонська сесія (Європейські торги)
+  if (totalMinutes >= 420 && totalMinutes < 720) {
+    return "London Session";
+  }
+  // 12:00 - 21:00 UTC -> Нью-Йоркська сесія (Американські торги)
+  if (totalMinutes >= 720 && totalMinutes < 1260) {
+    return "New York Session";
+  }
+
+  // 21:00 - 24:00 UTC -> Перерва між сесіями
+  return "Off-Hours";
 }
 
 export function Navbar({ activeTab, onTabChange }: NavbarProps) {
@@ -29,7 +43,7 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
       const seconds = String(now.getUTCSeconds()).padStart(2, "0");
 
       setTimeString(`${hours}:${minutes}:${seconds} UTC`);
-      setCurrentSession(getCurrentKillzone(now.getUTCHours()));
+      setCurrentSession(getCurrentSession(now));
     };
 
     updateTime();
@@ -54,7 +68,7 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
               T
             </span>
             <span className="font-mono text-sm font-semibold tracking-wider text-zinc-100">
-              TERMINAL <span className="text-zinc-500">//</span> JOURNAL
+              TERMINAL <span className="text-zinc-500">{"//"}</span> JOURNAL
             </span>
           </div>
 
@@ -78,8 +92,9 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
             return (
               <button
                 key={item.id}
+                type="button"
                 onClick={() => onTabChange(item.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-sm transition-all duration-150 ${
+                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-sm transition-all duration-150 cursor-pointer ${
                   isActive
                     ? "bg-zinc-800 text-zinc-100 shadow-sm"
                     : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50"
