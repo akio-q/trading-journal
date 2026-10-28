@@ -85,7 +85,7 @@ export function AnalyticsView() {
             Institutional Performance Analytics
           </h2>
           <p className="text-xs text-zinc-500">
-            Realized expectancy, session killzone edge, and SMC model
+            Realized expectancy, market session edge, and strategy setup
             attribution.
           </p>
         </div>
@@ -233,7 +233,7 @@ export function AnalyticsView() {
           <div className="flex items-center gap-2 border-b border-[#1e222d] pb-2">
             <Clock className="w-4 h-4 text-zinc-400" />
             <h3 className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
-              Killzone / Session Edge
+              Market Session Edge
             </h3>
           </div>
           {sessionEdge.length === 0 ? (
@@ -285,13 +285,13 @@ export function AnalyticsView() {
           <div className="flex items-center gap-2 border-b border-[#1e222d] pb-2">
             <Layers className="w-4 h-4 text-zinc-400" />
             <h3 className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
-              ICT Setup Model Edge
+              Strategy & Setup Edge
             </h3>
           </div>
           {modelEdge.length === 0 ? (
             <div className="py-8 text-center text-zinc-600 text-xs">
-              No ICT model tags logged. Tag setups in the trade drawer to see
-              model attribution.
+              No strategy setup tags logged. Tag setups in the trade drawer to
+              see performance attribution.
             </div>
           ) : (
             <div className="space-y-2">

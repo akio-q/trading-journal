@@ -18,10 +18,9 @@ import {
 const STATUS_OPTIONS: Array<TradeLog["status"]> = ["OPEN", "WIN", "LOSS", "BE"];
 
 const SESSIONS: Array<TradingSession | "Off-Hours"> = [
-  "London Killzone",
-  "NY AM Killzone",
-  "NY PM Killzone",
-  "Asia Killzone",
+  "London Session",
+  "New York Session",
+  "Asian Session",
   "Off-Hours",
 ];
 
@@ -161,8 +160,8 @@ export function JournalTable() {
             Execution Log & Journal
           </h2>
           <p className="text-xs font-mono text-zinc-500">
-            Historical trade executions, killzones, and outcome tracking. Click
-            any row for details.
+            Historical trade executions, market sessions, and outcome tracking.
+            Click any row for details.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -223,7 +222,7 @@ export function JournalTable() {
             onChange={(e) => setSessionFilter(e.target.value)}
             className="w-full px-3 py-1.5 rounded bg-[#121318] border border-[#1e222d] text-zinc-200 focus:outline-none focus:border-zinc-500 cursor-pointer"
           >
-            <option value="ALL">Session: All Killzones</option>
+            <option value="ALL">Session: All Sessions</option>
             {SESSIONS.map((sess) => (
               <option key={sess} value={sess}>
                 {sess}
