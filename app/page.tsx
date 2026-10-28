@@ -8,18 +8,27 @@ import { AnalyticsView } from "@/components/analytics-view";
 import { ActiveTab, TradingSession } from "@/types/trading";
 import { insertTrade } from "@/lib/supabase/trades";
 
-function getCurrentSession(): TradingSession | undefined {
+function getCurrentSession(): TradingSession {
   const now = new Date();
   const utcHours = now.getUTCHours();
   const utcMinutes = now.getUTCMinutes();
   const totalMinutes = utcHours * 60 + utcMinutes;
 
-  if (totalMinutes >= 0 && totalMinutes < 360) return "Asia Killzone";
-  if (totalMinutes >= 420 && totalMinutes < 600) return "London Killzone";
-  if (totalMinutes >= 720 && totalMinutes < 900) return "NY AM Killzone";
-  if (totalMinutes >= 1080 && totalMinutes < 1200) return "NY PM Killzone";
+  // 00:00 - 07:00 UTC -> Asian Session (Tokyo / Sydney)
+  if (totalMinutes >= 0 && totalMinutes < 420) {
+    return "Asian Session";
+  }
+  // 07:00 - 12:00 UTC -> London Session (European Cash Open)
+  if (totalMinutes >= 420 && totalMinutes < 720) {
+    return "London Session";
+  }
+  // 12:00 - 21:00 UTC -> New York Session (US Open & Cash Session)
+  if (totalMinutes >= 720 && totalMinutes < 1260) {
+    return "New York Session";
+  }
 
-  return undefined;
+  // 21:00 - 24:00 UTC -> Market Rollover / Off-Hours
+  return "Off-Hours";
 }
 
 export default function Home() {

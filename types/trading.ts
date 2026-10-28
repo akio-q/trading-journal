@@ -79,16 +79,13 @@ export const ASSET_SPECS: Record<AssetSymbol, AssetSpec> = {
   },
 };
 
-export const SESSIONS = [
-  "Asia Killzone",
-  "London Killzone",
-  "London SB",
-  "NY AM Killzone",
-  "NY AM SB",
-  "NY PM Killzone",
-  "NY PM SB",
-] as const;
-export type TradingSession = (typeof SESSIONS)[number];
+export type StandardSession =
+  | "Asian Session"
+  | "London Session"
+  | "New York Session"
+  | "Off-Hours";
+
+export type TradingSession = StandardSession | (string & {});
 
 export type ActiveTab = "calculator" | "journal" | "analytics";
 
