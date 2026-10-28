@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { TradeLog } from "@/types/trading";
 import { updateTradeNotes, deleteTrade } from "@/lib/supabase/trades";
 import {
@@ -20,15 +20,17 @@ import {
   Clock,
   Shield,
   Target,
+  Plus,
 } from "lucide-react";
 
-const ICT_MODELS = [
+const DEFAULT_STRATEGY_TAGS = [
+  "Breakout",
+  "Retest / Pullback",
+  "Trend Continuation",
+  "Reversal",
+  "Supply & Demand",
   "Liquidity Sweep",
-  "Fair Value Gap (FVG)",
-  "Order Block (OB)",
-  "Breaker Block",
-  "Silver Bullet",
-  "Market Structure Shift (MSS)",
+  "Fair Value Gap",
 ] as const;
 
 interface TradeDrawerProps {
@@ -53,9 +55,23 @@ function TradeDrawerContent({
   onTradeDeleted,
 }: TradeDrawerFormProps) {
   const [notes, setNotes] = useState<string>(trade.notes ?? "");
+  const [customTagInput, setCustomTagInput] = useState<string>("");
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+
+  // Extract all [#Tag] patterns currently present in the trade notes
+  const activeTagsInNotes = useMemo(() => {
+    const regex = /\[#([^\]]+)\]/g;
+    return Array.from(notes.matchAll(regex), (m) => m[1]);
+  }, [notes]);
+
+  // Combine default presets with any unique custom tags saved in notes
+  const allAvailableTags = useMemo(() => {
+    const combined = new Set<string>(DEFAULT_STRATEGY_TAGS);
+    activeTagsInNotes.forEach((tag) => combined.add(tag));
+    return Array.from(combined);
+  }, [activeTagsInNotes]);
 
   const handleSaveNotes = async () => {
     setIsSaving(true);
@@ -70,14 +86,13 @@ function TradeDrawerContent({
   };
 
   const handleToggleTag = async (tag: string) => {
-    const existingNotes = notes;
     const tagString = `[#${tag}]`;
     let newNotes = "";
 
-    if (existingNotes.includes(tagString)) {
-      newNotes = existingNotes.replace(tagString, "").trim();
+    if (notes.includes(tagString)) {
+      newNotes = notes.replace(tagString, "").replace(/\s+/g, " ").trim();
     } else {
-      newNotes = existingNotes ? `${tagString} ${existingNotes}` : tagString;
+      newNotes = notes ? `${tagString} ${notes}` : tagString;
     }
 
     setNotes(newNotes);
@@ -85,8 +100,19 @@ function TradeDrawerContent({
     await updateTradeNotes(trade.id, newNotes);
   };
 
+  const handleAddCustomTag = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanTag = customTagInput.trim().replace(/[\[\]#]/g, "");
+    if (!cleanTag) return;
+
+    if (!notes.includes(`[#${cleanTag}]`)) {
+      await handleToggleTag(cleanTag);
+    }
+    setCustomTagInput("");
+  };
+
   const handleDelete = async () => {
-    if (!window.confirm("Видалити цю угоду з журналу назавжди?")) return;
+    if (!window.confirm("Delete this trade permanently from journal?")) return;
 
     setIsDeleting(true);
     const success = await deleteTrade(trade.id);
@@ -136,7 +162,7 @@ function TradeDrawerContent({
         </SheetDescription>
       </SheetHeader>
 
-      {/* Trade Execution Metrics HUD */}
+      {/* Execution Geometry HUD */}
       <div className="py-4 space-y-3">
         <span className="text-[11px] text-zinc-500 uppercase tracking-wider block font-bold">
           Execution Geometry
@@ -190,34 +216,60 @@ function TradeDrawerContent({
         </div>
       </div>
 
-      {/* ICT / SMC Setup Models */}
+      {/* Dynamic Strategy & Setup Tags */}
       <div className="py-2 space-y-2 border-t border-[#1e222d]">
-        <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 font-bold">
-          <Tag className="w-3 h-3 text-zinc-500" />
-          <span>ICT / SETUP MODELS</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 font-bold">
+            <Tag className="w-3 h-3 text-zinc-500" />
+            <span>STRATEGY & SETUP TAGS</span>
+          </div>
         </div>
+
+        {/* Tag Chips */}
         <div className="flex flex-wrap gap-1.5">
-          {ICT_MODELS.map((model) => {
-            const isActive = notes.includes(`[#${model}]`);
+          {allAvailableTags.map((tag) => {
+            const isActive = notes.includes(`[#${tag}]`);
             return (
               <button
-                key={model}
+                key={tag}
                 type="button"
-                onClick={() => handleToggleTag(model)}
+                onClick={() => handleToggleTag(tag)}
                 className={`text-[10px] px-2 py-1 rounded border transition-colors cursor-pointer ${
                   isActive
                     ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold"
                     : "bg-[#09090b] text-zinc-400 border-[#1e222d] hover:text-zinc-200 hover:border-zinc-700"
                 }`}
               >
-                {model}
+                {tag}
               </button>
             );
           })}
         </div>
+
+        {/* Custom Tag Input Form */}
+        <form
+          onSubmit={handleAddCustomTag}
+          className="flex items-center gap-1.5 pt-1"
+        >
+          <input
+            type="text"
+            value={customTagInput}
+            onChange={(e) => setCustomTagInput(e.target.value)}
+            placeholder="Add custom setup tag..."
+            className="flex-1 px-2.5 py-1 text-[11px] rounded bg-[#09090b] border border-[#1e222d] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 font-mono"
+          />
+          <button
+            type="submit"
+            disabled={!customTagInput.trim()}
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] rounded bg-zinc-800 text-zinc-200 border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 cursor-pointer transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            <span>Add</span>
+          </button>
+        </form>
       </div>
 
-      {/* Notes & Psychological Log */}
+      {/* Trade Log Notes */}
       <div className="py-4 space-y-2 border-t border-[#1e222d]">
         <label className="text-[11px] text-zinc-400 font-bold block">
           TRADE LOG NOTES & CONFLUENCES
@@ -226,7 +278,7 @@ function TradeDrawerContent({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={5}
-          placeholder="Describe the entry logic, liquidity, errors, or psychological state..."
+          placeholder="Document setup reasoning, execution errors, or mental state..."
           className="w-full p-3 rounded bg-[#09090b] border border-[#1e222d] text-zinc-200 text-xs font-mono placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 resize-none leading-relaxed"
         />
         <div className="flex items-center justify-between pt-1">
