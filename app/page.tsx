@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Navbar } from "@/components/navbar";
 import { PositionCalculator, LogTradePayload } from "@/components/calculator";
 import { JournalTable } from "@/components/journal-table";
+import { AnalyticsView } from "@/components/analytics-view";
 import { ActiveTab, TradingSession } from "@/types/trading";
 import { insertTrade } from "@/lib/supabase/trades";
 
@@ -48,11 +49,7 @@ export default function Home() {
           <PositionCalculator onLogTrade={handleLogTrade} />
         )}
         {activeTab === "journal" && <JournalTable />}
-        {activeTab === "analytics" && (
-          <div className="p-6 rounded-md border border-[#1e222d] bg-[#121318] text-xs font-mono text-zinc-400">
-            Analytics view placeholder
-          </div>
-        )}
+        {activeTab === "analytics" && <AnalyticsView />}
       </main>
     </div>
   );
