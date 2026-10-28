@@ -1,21 +1,44 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { TradeLog } from "@/types/trading";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { TradeLog, TradingSession } from "@/types/trading";
 import { fetchTrades, updateTradeOutcome } from "@/lib/supabase/trades";
 import { TradeDrawer } from "@/components/trade-drawer";
-import { TrendingUp, TrendingDown, RefreshCw, Clock } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  RefreshCw,
+  Clock,
+  Search,
+  Filter,
+  ArrowUpDown,
+  X,
+} from "lucide-react";
 
 const STATUS_OPTIONS: Array<TradeLog["status"]> = ["OPEN", "WIN", "LOSS", "BE"];
+
+const SESSIONS: Array<TradingSession | "Off-Hours"> = [
+  "London Killzone",
+  "NY AM Killzone",
+  "NY PM Killzone",
+  "Asia Killzone",
+  "Off-Hours",
+];
 
 export function JournalTable() {
   const [trades, setTrades] = useState<TradeLog[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  // Selected trade for drawer
+  // Selected trade for side drawer
   const [selectedTrade, setSelectedTrade] = useState<TradeLog | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
+
+  // Filter & Search States
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [sessionFilter, setSessionFilter] = useState<string>("ALL");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   const loadTrades = useCallback(async () => {
     setIsLoading(true);
@@ -50,7 +73,7 @@ export function JournalTable() {
     tradeId: string,
     newStatus: TradeLog["status"],
   ) => {
-    e.stopPropagation(); // Don't trigger drawer when clicking status pill
+    e.stopPropagation();
     setUpdatingId(tradeId);
 
     setTrades((prev) =>
@@ -81,6 +104,50 @@ export function JournalTable() {
     setSelectedTrade(null);
   };
 
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    statusFilter !== "ALL" ||
+    sessionFilter !== "ALL";
+
+  const resetFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("ALL");
+    setSessionFilter("ALL");
+  };
+
+  // Filtered and sorted trade list
+  const filteredTrades = useMemo(() => {
+    return trades
+      .filter((trade) => {
+        // 1. Text Search (Asset symbol or Notes content)
+        if (searchQuery.trim() !== "") {
+          const query = searchQuery.toLowerCase();
+          const matchesAsset = trade.asset.toLowerCase().includes(query);
+          const matchesNotes =
+            trade.notes?.toLowerCase().includes(query) ?? false;
+          if (!matchesAsset && !matchesNotes) return false;
+        }
+
+        // 2. Status / Outcome Filter
+        if (statusFilter !== "ALL" && trade.status !== statusFilter) {
+          return false;
+        }
+
+        // 3. Session / Killzone Filter
+        if (sessionFilter !== "ALL") {
+          const tradeSession = trade.session ?? "Off-Hours";
+          if (tradeSession !== sessionFilter) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        const timeA = new Date(a.createdAt).getTime();
+        const timeB = new Date(b.createdAt).getTime();
+        return sortOrder === "desc" ? timeB - timeA : timeA - timeB;
+      });
+  }, [trades, searchQuery, statusFilter, sessionFilter, sortOrder]);
+
   const formatPrice = (val: number) => {
     return val > 100 ? val.toFixed(2) : val.toFixed(4);
   };
@@ -95,13 +162,16 @@ export function JournalTable() {
           </h2>
           <p className="text-xs font-mono text-zinc-500">
             Historical trade executions, killzones, and outcome tracking. Click
-            any row for details & notes.
+            any row for details.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs font-mono text-zinc-500">
-            TOTAL RECORDS:{" "}
-            <span className="text-zinc-200 font-bold">{trades.length}</span>
+            MATCHING:{" "}
+            <span className="text-zinc-200 font-bold">
+              {filteredTrades.length}
+            </span>{" "}
+            / {trades.length}
           </span>
           <button
             type="button"
@@ -114,6 +184,80 @@ export function JournalTable() {
               className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`}
             />
           </button>
+        </div>
+      </div>
+
+      {/* Filter and Search Control Toolbar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 font-mono text-xs">
+        {/* Search Input */}
+        <div className="relative">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search asset, tag, or note..."
+            className="w-full pl-8 pr-3 py-1.5 rounded bg-[#121318] border border-[#1e222d] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
+          />
+        </div>
+
+        {/* Outcome Filter */}
+        <div className="relative">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full px-3 py-1.5 rounded bg-[#121318] border border-[#1e222d] text-zinc-200 focus:outline-none focus:border-zinc-500 cursor-pointer"
+          >
+            <option value="ALL">Status: All Outcomes</option>
+            <option value="OPEN">Status: OPEN</option>
+            <option value="WIN">Status: WIN</option>
+            <option value="LOSS">Status: LOSS</option>
+            <option value="BE">Status: BE</option>
+          </select>
+        </div>
+
+        {/* Session Filter */}
+        <div className="relative">
+          <select
+            value={sessionFilter}
+            onChange={(e) => setSessionFilter(e.target.value)}
+            className="w-full px-3 py-1.5 rounded bg-[#121318] border border-[#1e222d] text-zinc-200 focus:outline-none focus:border-zinc-500 cursor-pointer"
+          >
+            <option value="ALL">Session: All Killzones</option>
+            {SESSIONS.map((sess) => (
+              <option key={sess} value={sess}>
+                {sess}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Sorting & Filter Reset */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"))
+            }
+            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded border border-[#1e222d] bg-[#121318] text-zinc-300 hover:text-zinc-100 hover:border-zinc-700 transition-colors cursor-pointer"
+          >
+            <ArrowUpDown className="w-3.5 h-3.5 text-zinc-500" />
+            <span>
+              {sortOrder === "desc" ? "Newest First" : "Oldest First"}
+            </span>
+          </button>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors cursor-pointer"
+              title="Reset all filters"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -144,15 +288,16 @@ export function JournalTable() {
                     Querying Supabase execution logs...
                   </td>
                 </tr>
-              ) : trades.length === 0 ? (
+              ) : filteredTrades.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-12 text-center text-zinc-500">
-                    No trades logged yet. Calculate and dispatch a setup from
-                    the Position Calculator.
+                    {hasActiveFilters
+                      ? "No trades match the active search or filter criteria."
+                      : "No trades logged yet. Calculate and dispatch a setup from the Position Calculator."}
                   </td>
                 </tr>
               ) : (
-                trades.map((trade) => {
+                filteredTrades.map((trade) => {
                   const date = new Date(trade.createdAt);
                   const formattedDate = `${date.getMonth() + 1}/${date.getDate()} ${date
                     .getHours()
